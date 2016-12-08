@@ -49,4 +49,5 @@ names(tabela) <- tolower(names(tabela))
 
 # salvando tabela ---------------------------------------------------------------------------------------------------------------------
 
-write.table(x = tabela, file = "data/tidy data/lista_de_preseca.xls", sep = "\t", row.names = FALSE)
+write.table(x = tabela, file = "data/tidy data/lista_de_presenca.xls", sep = "\t", row.names = FALSE)
+write.table(x = nomes_id, file = "data/tidy data/chave_id.xls", sep = "\t", row.names = FALSE)
