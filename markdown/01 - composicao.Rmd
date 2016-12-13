@@ -1,0 +1,285 @@
+---
+title:    "Palestras do PPGE"
+subtitle: "Analisando o presente para solucionar desafios futuros"
+author:   "Mauricio Almeida, Marcelo Weber & Nicholas Marino"
+date:     "github.com/nacmarino/palestrasppgeufrj"
+output: 
+  ioslides_presentation:
+    wide: true
+    transition: faster
+---
+
+```{r echo=FALSE}
+knitr::opts_chunk$set(fig.align = "center", echo = FALSE, warning = FALSE, message = FALSE, results = "hide")
+```
+
+```{r}
+library(tidyverse)
+library(betapart)
+library(vegan)
+library(metacom)
+```
+
+```{r}
+seminarios <- read_tsv("../data/tidy data/lista_de_presenca.xls")
+
+dados <- seminarios %>% 
+  mutate(palestra = paste0(data,mes,ano)) %>% 
+  select(palestra, palestra:`tema #1`) %>% 
+  distinct %>% 
+  mutate(ordem = c(4, 11, 7, 1, 8, 5, 2, 9, 6, 3, 10)) %>% 
+  arrange(ordem)
+
+presencas <- seminarios %>% 
+  filter(id != 5) %>% 
+  mutate(palestra = paste0(data,mes,ano)) %>% 
+  select(id, palestra) %>% 
+  mutate(presenca = rep(1, nrow(.))) %>% 
+  spread(key = id, value = presenca, fill = 0) %>% 
+  left_join(select(dados, palestra, ordem), by = "palestra") %>% 
+  arrange(ordem) %>% 
+  select(-ordem)
+```
+
+## Diversidade beta pode ser particionada em dois componentes
+
+<img src="https://methodsblog.files.wordpress.com/2015/05/beta3.jpg" width="600" height="140" />  
+<img src="https://methodsblog.files.wordpress.com/2015/05/beta4.jpg" width="600" height="140" />  
+<img src="https://methodsblog.files.wordpress.com/2015/05/beta5.jpg" width="600" height="140" />
+
+## Turnover de pessoas é alto nos seminários
+
+```{r}
+beta1 <- beta.multi(x = presencas[,-1], index.family = "sorensen")
+set.seed(97353)
+beta1_sample <- beta.sample(x = presencas[,-1], index.family = "sorensen", sites = 5, samples = 252)
+beta_data <- cbind.data.frame(media = beta1_sample$mean.values, desvio = beta1_sample$sd.values) %>% 
+  rownames_to_column(var = "componente")
+
+ggplot(data = beta_data, mapping = aes(x = reorder(componente, -media), y = media, fill = componente)) +
+  geom_bar(colour = "black", position = position_dodge(width = 0.5), stat = "identity") +
+  geom_errorbar(mapping = aes(ymin = media - desvio, ymax = media + desvio), position = position_dodge(width = 0.5), 
+                stat = "identity", width = 0.6) +
+  scale_fill_manual(values = c("yellow1", "deepskyblue1", "forestgreen")) +
+  scale_y_continuous("Valor do Componente", breaks = seq(0, 1, by = 0.2), expand = c(0,0), limits = c(0,0.9)) + 
+  scale_x_discrete(expression(paste("Componente da Diversidade ", beta)), labels = c("Sorensen", "Turnover", "Diff Rich")) +
+  theme_bw() +
+  theme(legend.position = "none",
+        axis.title = element_text(face = "bold", color = "black", size = 14),
+        axis.text = element_text(color = "black", size = 12))
+```
+
+***
+### Composição de ouvintes nos seminários ao longo do tempo foi dinâmica, em dois períodos muito bem marcados
+
+```{r}
+disp1 <- betadisper(d = beta.pair(x = presencas[,-1], index.family = "sorensen")$beta.sor, group = presencas$palestra)
+disp1_centroids <- data.frame(disp1$centroids) %>% 
+  rownames_to_column(var = "palestra") %>% 
+  left_join(select(dados, palestra, ordem), by = "palestra") %>% 
+  arrange(ordem)
+
+ggplot(data = disp1_centroids, mapping = aes(x = PCoA1, y = PCoA2, fill = ordem)) +
+  geom_path(aes(colour = ordem), arrow = arrow(angle = 30, length = unit(0.2, "inches"))) +
+  geom_point(shape = 21, size = 4, stroke = 1) +
+  scale_fill_gradientn(colours = rev(heat.colors(11))) +
+  scale_color_gradientn(colours = rev(heat.colors(11))) +
+  theme(legend.position = "none",
+        axis.title = element_text(face = "bold", color = "black", size = 14),
+        axis.text = element_text(color = "black", size = 12),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "grey80", colour = "black"))
+```
+
+***
+### Presença nas palestras segue um padrão aninhado (no tempo e no gradiente de 'riqueza')
+
+```{r}
+ordem_colunas <- rev(sort(colSums(presencas[,-1]))) %>% 
+  data.frame() %>% 
+  rownames_to_column(var = "id")
+presencas <- presencas[,c("palestra", ordem_colunas$id)]
+presencas <- presencas %>% 
+  mutate(soma = rowSums(presencas[,-1])) %>% 
+  arrange(desc(soma)) %>% 
+  select(-soma)
+
+Imagine(comm = presencas[,-1], order = FALSE, sitenames = rev(presencas$palestra), col=c('white','black'), fill = FALSE, xlab = "", ylab = "")
+```
+
+# E quanto às próprias pessoas presentes?
+
+```{r}
+invertida <- seminarios %>% 
+  filter(id != 5) %>% 
+  mutate(palestra = paste0(data,mes,ano)) %>% 
+  select(id, palestra) %>% 
+  mutate(presenca = rep(1, nrow(.))) %>% 
+  spread(key = palestra, value = presenca, fill = 0) %>% 
+  arrange(id)
+
+individuos <- seminarios %>% 
+  filter(id != 5) %>% 
+  select(id, formacao_ouvinte:laboratorio_ouvinte) %>% 
+  distinct %>% 
+  mutate(formacao_ouvinte = ifelse(is.na(formacao_ouvinte), "desconhecido", formacao_ouvinte),
+         origem_ouvinte = ifelse(origem_ouvinte %in% c("PPGE", "Dept Ecologia"), "Interno", 
+                                 ifelse(origem_ouvinte == "IB", "IB", "Externo")),
+         instituicao_ouvinte = ifelse(is.na(instituicao_ouvinte), "desconhecido", instituicao_ouvinte),
+         laboratorio_ouvinte = ifelse(is.na(laboratorio_ouvinte), "desconhecido", laboratorio_ouvinte)) %>% 
+  arrange(id) %>% 
+  mutate(formacao_ouvinte = forcats::fct_lump(f = formacao_ouvinte, prop = 0.1),
+         instituicao_ouvinte = forcats::fct_lump(f = instituicao_ouvinte, prop = 0.1),
+         laboratorio_ouvinte = forcats::fct_lump(f = laboratorio_ouvinte, prop = 0.05),
+         origem_ouvinte = ifelse(is.na(origem_ouvinte), "Externo", origem_ouvinte),
+         origem_ouvinte = factor(origem_ouvinte)) %>% 
+  arrange(id)
+
+
+StatChull <- ggproto("StatChull", Stat,
+                     compute_group = function(data, scales) {
+                       data[chull(data$x, data$y), , drop = FALSE]
+                     },
+                     
+                     required_aes = c("x", "y")
+)
+
+stat_chull <- function(mapping = NULL, data = NULL, geom = "polygon",
+                       position = "identity", na.rm = FALSE, show.legend = NA, 
+                       inherit.aes = TRUE, ...) {
+  layer(
+    stat = StatChull, data = data, mapping = mapping, geom = geom, 
+    position = position, show.legend = show.legend, inherit.aes = inherit.aes,
+    params = list(na.rm = na.rm, ...)
+  )
+}
+
+disp2 <- betadisper(beta.pair(x = invertida[,-1], index.family = "sorensen")$beta.sor, individuos$formacao_ouvinte)
+disp2_ind <- data.frame(disp2$vectors) %>% 
+  tbl_df %>% 
+  mutate(formacao_ouvinte = disp2$group)
+
+disp4 <- betadisper(beta.pair(x = invertida[,-1], index.family = "sorensen")$beta.sor, individuos$laboratorio_ouvinte)
+disp4_ind <- data.frame(disp4$vectors) %>% 
+  tbl_df %>% 
+  mutate(laboratorio_ouvinte = disp4$group)
+
+disp5 <- betadisper(beta.pair(x = invertida[,-1], index.family = "sorensen")$beta.sor, individuos$origem_ouvinte)
+disp5_ind <- data.frame(disp5$vectors) %>% 
+  tbl_df %>% 
+  mutate(origem_ouvinte = disp5$group)
+```
+
+***
+### Existem 'grupinhos' que sempre estão presentes
+
+```{r fig.height=5.5, fig.width=8}
+ggplot(data = disp2_ind, mapping = aes(x = PCoA1, y = PCoA2, fill = formacao_ouvinte)) +
+  facet_wrap(~ formacao_ouvinte) + 
+  geom_point(aes(shape = formacao_ouvinte)) +
+  stat_chull(colour = "black", alpha = 0.3) +
+  scale_fill_manual(values = rainbow(6)) +
+  theme_bw() +
+  theme(legend.position = "none",
+        axis.title = element_text(face = "bold", color = "black", size = 14),
+        axis.text = element_text(color = "black", size = 12),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "white", colour = "black"))
+```
+
+***
+### Sempre as mesmas pessoas, dos mesmos laboratórios
+
+```{r fig.height=5}
+ggplot(data = disp4_ind, mapping = aes(x = PCoA1, y = PCoA2, fill = laboratorio_ouvinte)) +
+  facet_wrap(~ laboratorio_ouvinte) + 
+  geom_point(aes(shape = laboratorio_ouvinte)) +
+  stat_chull(colour = "black", alpha = 0.3) +
+  scale_fill_manual(values = heat.colors(4)) +
+  theme_bw() +
+  theme(legend.position = "none",
+        axis.title = element_text(face = "bold", color = "black", size = 14),
+        axis.text = element_text(color = "black", size = 12),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "white", colour = "black"))
+```
+
+***
+### Ouvintes externos tendem a vir mais erraticamente às palestras do que os externos
+
+```{r fig.height=5}
+ggplot(data = disp5_ind, mapping = aes(x = PCoA1, y = PCoA2, fill = origem_ouvinte)) +
+  facet_wrap(~ origem_ouvinte) + 
+  geom_point(aes(shape = origem_ouvinte), size = 4) +
+  stat_chull(colour = "black", alpha = 0.3) +
+  scale_fill_manual(values = heat.colors(3)) +
+  theme_bw() +
+  theme(legend.position = "none",
+        axis.title = element_text(face = "bold", color = "black", size = 14),
+        axis.text = element_text(color = "black", size = 12),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "white", colour = "black"))
+```
+
+## Uma forma de visualizar tudo isso...
+
+```{r fig.width=8, fig.height=5}
+invertida <- arrange(invertida, id)
+individuos <- arrange(individuos, id)
+
+rda1 <- capscale(invertida[,-1] ~ formacao_ouvinte + origem_ouvinte + laboratorio_ouvinte, distance = "jaccard", data = individuos)
+
+fatores <- scores(rda1)$centroids %>% 
+  data.frame %>% 
+  rownames_to_column(var = "variavel")
+fatores$variavel <- c("Doutorado", "Graduacao", "Mestrado", "PosDoc", "Professor", "Outros", "Externo", "IB", "Interno", "Desconhecido",
+                      "Limnologia", "Vertebrados", "Outros")
+
+fatores <- fatores %>% 
+  mutate(tipo = rep(c("formacao", "origem", "laboratorio"), times = c(6, 3, 4)))
+
+dias <- scores(rda1)$species %>% 
+  data.frame %>% 
+  rownames_to_column(var = "palestra") %>% 
+  left_join(select(dados, palestra, ordem, palestrante), by = "palestra") %>% 
+  arrange(ordem)
+
+ggplot() +
+  geom_hline(yintercept = 0, alpha = 0.3) +
+  geom_vline(xintercept = 0, alpha = 0.3) + 
+  geom_text(data = fatores, mapping = aes(x = CAP1, y = CAP2, colour = tipo, label = variavel), fontface = 2, size = 5) +
+  scale_colour_manual(values = c("black", "blue3", "forestgreen")) +
+  lims(x = c(-1.5, 1.2), y = c(-1.6,1)) +
+  theme(legend.position = "none",
+        axis.title = element_text(face = "bold", color = "black", size = 14),
+        axis.text = element_text(color = "black", size = 12),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "gray90", colour = "black"))
+```
+
+## Uma forma de visualizar tudo isso...
+
+```{r fig.width=8, fig.height=5}
+ggplot() +
+  geom_hline(yintercept = 0, alpha = 0.3) +
+  geom_vline(xintercept = 0, alpha = 0.3) + 
+  geom_text(data = fatores, mapping = aes(x = CAP1, y = CAP2, colour = tipo, label = variavel), fontface = 2, size = 5, alpha = 0.4) +
+  scale_colour_manual(values = c("black", "blue3", "forestgreen")) +
+  geom_text(data = dias, mapping = aes(x = CAP1, y = CAP2, label = palestrante), colour = "black", fontface = 2, size = 3.5) +
+  lims(x = c(-1.5, 1.2), y = c(-1.6,1)) +
+  theme(legend.position = "none",
+        axis.title = element_text(face = "bold", color = "black", size = 14),
+        axis.text = element_text(color = "black", size = 12),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "gray90", colour = "black"))
+```
+
+## O que devemos pensar?
+
+* 
