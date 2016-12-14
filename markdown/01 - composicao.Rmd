@@ -41,6 +41,22 @@ presencas <- seminarios %>%
   select(-ordem)
 ```
 
+***
+### Presença nas palestras segue um padrão aninhado (no tempo e no gradiente de 'riqueza')
+
+```{r}
+ordem_colunas <- rev(sort(colSums(presencas[,-1]))) %>% 
+  data.frame() %>% 
+  rownames_to_column(var = "id")
+presencas <- presencas[,c("palestra", ordem_colunas$id)]
+presencas <- presencas %>% 
+  mutate(soma = rowSums(presencas[,-1])) %>% 
+  arrange(desc(soma)) %>% 
+  select(-soma)
+
+Imagine(comm = presencas[,-1], order = FALSE, sitenames = rev(presencas$palestra), col=c('white','black'), fill = FALSE, xlab = "", ylab = "")
+```
+
 ## Diversidade beta pode ser particionada em dois componentes
 
 <img src="https://methodsblog.files.wordpress.com/2015/05/beta3.jpg" width="600" height="140" />  
@@ -90,22 +106,6 @@ ggplot(data = disp1_centroids, mapping = aes(x = PCoA1, y = PCoA2, fill = ordem)
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
         panel.background = element_rect(fill = "grey80", colour = "black"))
-```
-
-***
-### Presença nas palestras segue um padrão aninhado (no tempo e no gradiente de 'riqueza')
-
-```{r}
-ordem_colunas <- rev(sort(colSums(presencas[,-1]))) %>% 
-  data.frame() %>% 
-  rownames_to_column(var = "id")
-presencas <- presencas[,c("palestra", ordem_colunas$id)]
-presencas <- presencas %>% 
-  mutate(soma = rowSums(presencas[,-1])) %>% 
-  arrange(desc(soma)) %>% 
-  select(-soma)
-
-Imagine(comm = presencas[,-1], order = FALSE, sitenames = rev(presencas$palestra), col=c('white','black'), fill = FALSE, xlab = "", ylab = "")
 ```
 
 # E quanto às próprias pessoas presentes?
@@ -282,4 +282,8 @@ ggplot() +
 
 ## O que devemos pensar?
 
-* 
+* O que somos: muitas pessoas pouco interessadas ou poucas pessoas muito interessadas?  
+* Vamos manter o mesmo dia (quartas-feiras) e horário das palestras (16hrs)?  
+* Quem serão os palestrantes no próximo semestre?
+    + Sugestão existente: professores permanentes do PPGE.
+* Precisamos discutir ciência para além do espaço físico do nosso laboratório.
