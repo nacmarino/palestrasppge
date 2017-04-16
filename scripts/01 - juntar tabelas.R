@@ -10,7 +10,7 @@ library(stringr)
 # carregando dados --------------------------------------------------------------------------------------------------------------------
 
 arquivos <- list.files("data/raw data/")
-arquivos <- arquivos[1:11]
+arquivos <- arquivos[1:16]
 
 lista_de_tabelas <- list()
 
