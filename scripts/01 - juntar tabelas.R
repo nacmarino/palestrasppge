@@ -5,6 +5,7 @@ rm(list=ls(all=TRUE))
 
 library(tidyverse)
 library(readxl)
+library(stringr)
 
 # carregando dados --------------------------------------------------------------------------------------------------------------------
 
