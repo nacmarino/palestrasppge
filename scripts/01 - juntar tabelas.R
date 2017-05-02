@@ -50,7 +50,18 @@ tabela <- tabela %>%
          Nome = gsub(pattern = "Raquel Mattos G da Costa", replacement = "Raquel Matos G da Costa", x = Nome),
          Nome = gsub(pattern = "Sorana Karenina Antonia Francesquini de Lima", replacement = "Sorana Karenina A F Lima", x = Nome),
          Formacao = ifelse(Nome == "Sorana Karenina A F Lima", "Licenciatura", Formacao),
-         Nome = gsub(pattern = "Vinicius F Farjalla", replacement = "Vinicius Fortes Farjalla", x = Nome)) %>% 
+         Nome = gsub(pattern = "Vinicius F Farjalla", replacement = "Vinicius Fortes Farjalla", x = Nome),
+         Origem = gsub(pattern = "Dept Ecologia", replacement = "Ecologia", x = Origem),
+         Origem = gsub(pattern = "Depto Ecologia", replacement = "Ecologia", x = Origem),
+         Origem = gsub(pattern = "Ecologia", replacement = "Dept Ecologia", x = Origem),
+         Origem = gsub(pattern = "Inst Biofisica", replacement = "IBCCF", x = Origem),
+         Instituicao = gsub(pattern = "São Jose", replacement = "Sao Jose", x = Instituicao),
+         Instituicao = gsub(pattern = "NUPEM/UFRJ", replacement = "NUPEM", x = Instituicao),
+         Instituicao = gsub(pattern = "Unigranrio", replacement = "UNIGRANRIO", x = Instituicao),
+         Laboratorio = gsub(pattern = "Leao", replacement = "Rod Leao", x = Laboratorio),
+         Laboratorio = gsub(pattern = "Isotopos", replacement = "Radioisotopos", x = Laboratorio),
+         Laboratorio = gsub(pattern = "LEV", replacement = "Ecologia Vegetal", x = Laboratorio),
+         Laboratorio = gsub(pattern = "Insetos", replacement = "LEI", x = Laboratorio)) %>% 
   left_join(nomes_id, by = "Nome") %>% 
   select(-Nome) %>% 
   select(id, everything()) %>% 
