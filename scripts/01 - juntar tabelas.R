@@ -10,7 +10,7 @@ library(stringr)
 # carregando dados --------------------------------------------------------------------------------------------------------------------
 
 arquivos <- list.files("data/raw data/")
-arquivos <- arquivos[1:16]
+arquivos <- arquivos[1:(length(arquivos)-1)]
 
 lista_de_tabelas <- list()
 
@@ -26,7 +26,12 @@ nomes_id <- tabela %>%
   select(Nome) %>% 
   distinct(Nome) %>% 
   arrange(Nome) %>% 
-  mutate(id = seq_along(Nome))
+  mutate(id = seq_along(Nome),
+         Nome = gsub(pattern = "Mayara Vescossi Assis", replacement = "Mayara Assis", x = Nome),
+         Nome = gsub(pattern = "Nathalia Rezende", replacement = "Natalia Resende de Souza", x = Nome),
+         Nome = gsub(pattern = "Raquel Mattos G da Costa", replacement = "Raquel Matos G da Costa", x = Nome),
+         Nome = gsub(pattern = "Sorana Karenina Antonia Francesquini de Lima", replacement = "Sorana Karenina A F Lima", x = Nome),
+         Nome = gsub(pattern = "Vinicius F Farjalla", replacement = "Vinicius Fortes Farjalla", x = Nome))
 
 # carregando tabela dos seminarios ----------------------------------------------------------------------------------------------------
 
@@ -37,7 +42,15 @@ seminarios <- read_excel("data/raw data/Lista de Palestras.xlsx") %>%
 # limpando tabela ---------------------------------------------------------------------------------------------------------------------
 
 tabela <- tabela %>% 
-  mutate(Formacao = ifelse(Formacao == "Graduanda", "Graduacao", Formacao), id_seminario = paste0(Data,Mes,Ano)) %>% 
+  mutate(Formacao = ifelse(Formacao == "Graduanda", "Graduacao", Formacao), 
+         id_seminario = paste0(Data,Mes,Ano),
+         Nome = gsub(pattern = "Mayara Vescossi Assis", replacement = "Mayara Assis", x = Nome),
+         Laboratorio = gsub(pattern = "Plantas", replacement = "LEV", x = Laboratorio),
+         Nome = gsub(pattern = "Nathalia Rezende", replacement = "Natalia Resende de Souza", x = Nome),
+         Nome = gsub(pattern = "Raquel Mattos G da Costa", replacement = "Raquel Matos G da Costa", x = Nome),
+         Nome = gsub(pattern = "Sorana Karenina Antonia Francesquini de Lima", replacement = "Sorana Karenina A F Lima", x = Nome),
+         Formacao = ifelse(Nome == "Sorana Karenina A F Lima", "Licenciatura", Formacao),
+         Nome = gsub(pattern = "Vinicius F Farjalla", replacement = "Vinicius Fortes Farjalla", x = Nome)) %>% 
   left_join(nomes_id, by = "Nome") %>% 
   select(-Nome) %>% 
   select(id, everything()) %>% 
